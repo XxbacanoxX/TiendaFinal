@@ -1,0 +1,61 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+    container_name: store-frontend
+    ports:
+      - "25000:5000"
+    restart: unless-stopped
+
+  prometheus:
+    build:
+      context: ./backend
+    container_name: store-prometheus
+    ports:
+      - "25090:9090"
+    depends_on:
+      - frontend
+      - node-exporter
+      - cadvisor
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: store-grafana
+    ports:
+      - "25030:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: hectorespinosa
+      GF_SECURITY_ADMIN_PASSWORD: hsel
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./backend/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./backend/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    container_name: store-node-exporter
+    command:
+      - "--path.rootfs=/host"
+    pid: host
+    volumes:
+      - "/:/host:ro"
+    restart: unless-stopped
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: store-cadvisor
+    privileged: true
+    volumes:
+      - "/:/rootfs:ro"
+      - "/var/run:/var/run:ro"
+      - "/sys:/sys:ro"
+      - "/var/lib/docker/:/var/lib/docker:ro"
+    restart: unless-stopped
+
+volumes:
+  grafana-data:
